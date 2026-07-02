@@ -7,12 +7,14 @@ from .chat import chat_agent
 from .code import code_agent
 from .cowork import cowork_agent
 from .myhelper import myhelper_agent
+from .proposal import proposal_agent
 
 _BUILDERS = {
     "code": code_agent,
     "chat": chat_agent,
     "cowork": cowork_agent,
     "myhelper": myhelper_agent,
+    "proposal": proposal_agent,
 }
 
 
@@ -28,4 +30,5 @@ def list_agents() -> list[dict]:
         {"name": "code", "title": "Code", "needs_workspace": True},
         {"name": "chat", "title": "Chat", "needs_workspace": False},
         {"name": "cowork", "title": "Coworker", "needs_workspace": True},
+        {"name": "proposal", "title": "Proposal", "needs_workspace": True},
     ]
