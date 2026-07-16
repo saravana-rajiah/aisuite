@@ -48,12 +48,13 @@ class ProposalFactoryAdapter:
             # import cost, and OpenCowork can still start up if ProposalFactory-CoreEngine isn't
             # installed in a given environment.
             from proposal_factory import ProposalBuilderExecutor
-
+            print("Proposal Factory Adapter: Inside Execute Instance")
             self._executor = ProposalBuilderExecutor()
         return self._executor
 
     def run(self, *, workspace: Path, builder_name: str, request: str) -> Any:
         """Build a ProposalContext and execute the named builder. Returns the result as-is."""
+        print("Proposal tool_factory invoked")
         from integrations import ProposalContext
 
         context = ProposalContext(workspace=workspace, request=request)

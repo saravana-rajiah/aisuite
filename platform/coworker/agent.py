@@ -149,7 +149,7 @@ def build_engine(
     ):
         registry.register(make_send_message_tool(secrets))
     # Orphan surfaces can ask the user mid-task for access to another folder (read-only/-write).
-    if agent.name in ("cowork", "myhelper") and root_list:
+    if agent.name in ("cowork", "myhelper", "proposal") and root_list:
         registry.register(request_directory_tool())
     if agent.name == "cowork":
         enabled_connectors, enabled_tools = _enabled_connector_tools(secrets)
@@ -227,10 +227,10 @@ def build_engine(
         auto_allow_tools=set(config.auto_allow),
         roots=root_list or None,
     )
-    # The plan-mode exit door. Always registered (surfaces can flip a live session into
-    # plan mode via set_mode, and the registry is fixed at build); the engine rejects the
-    # call whenever the session isn't actually in plan mode.
-    registry.register(propose_plan_tool())
+    # The plan-mode exit door. Registered for all agents except proposal, which owns its own
+    # execution methodology and must not enter the generic plan-and-approve workflow.
+    if agent.name != "proposal":
+        registry.register(propose_plan_tool())
 
     # Per-turn ephemeral context, appended to the latest user message since mid-thread system
     # messages aren't reliable across providers. Two producers: the plan-mode reminder (mode can
@@ -238,7 +238,7 @@ def build_engine(
     # directory list (orphan Cowork can gain folders mid-session; Cowork/MyHelper only).
     roots_context = (
         (lambda: render_context(root_list))
-        if root_list and agent.name in ("cowork", "myhelper")
+        if root_list and agent.name in ("cowork", "myhelper", "proposal")
         else None
     )
 

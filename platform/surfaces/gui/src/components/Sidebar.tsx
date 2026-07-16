@@ -4,9 +4,10 @@ import type { SessionInfo } from "../types";
 import { Icon } from "./Icon";
 
 // Session surfaces shown as accordions, in display order. Cowork is always visible; Chat/Code
-// are toggled via Settings. Each has a colored icon square.
+// are toggled via Settings. Proposal is always visible (development surface).
 const SURFACES: { key: string; label: string; icon: "diamond" | "chat" | "code"; cls: string }[] = [
   { key: "cowork", label: "OpenCoworker", icon: "diamond", cls: "ico-cowork" },
+  { key: "proposal", label: "Proposal", icon: "diamond", cls: "ico-cowork" },
   { key: "chat", label: "Chat", icon: "chat", cls: "ico-chat" },
   { key: "code", label: "Code", icon: "code", cls: "ico-code" },
 ];
@@ -151,7 +152,7 @@ export function Sidebar(props: Props) {
   }
 
   const visibleSurfaces = SURFACES.filter(
-    (s) => s.key === "cowork" || props.surfaces[s.key as keyof SurfaceVisibility],
+    (s) => s.key === "cowork" || s.key === "proposal" || props.surfaces[s.key as keyof SurfaceVisibility],
   );
 
   // Which accordion body is expanded. Follows the active surface, but can be set to null so ALL

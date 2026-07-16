@@ -214,7 +214,7 @@ class SessionManager:
             # Cowork starts "orphan": no folder picked → auto-provision a per-conversation
             # scratch directory (generalizes MyHelper's auto-workspace). Code still requires a
             # real repo; Chat needs no workspace.
-            if agent_name == "cowork":
+            if agent_name in ("cowork", "proposal"):
                 ws = self._provision_scratch(session_id)
             else:
                 return None
@@ -224,7 +224,7 @@ class SessionManager:
         # Orphan surfaces are multi-root: the scratch (ws) is the primary writable root, plus any
         # folders the user added (persisted per session). Code/Chat stay single-root (roots=None).
         roots = None
-        if agent_name in ("cowork", "myhelper") and ws:
+        if agent_name in ("cowork", "myhelper", "proposal") and ws:
             extra = [
                 r
                 for r in ((record.extra_roots if record else []) or [])

@@ -67,7 +67,7 @@ function normalizeTodos(raw: unknown): TodoItem[] {
 }
 
 // Has a workspace (project-grouped, shows a working-area chip): Code + Cowork.
-const needsWorkspace = (a: string) => a === "code" || a === "cowork";
+const needsWorkspace = (a: string) => a === "code" || a === "cowork" || a === "proposal";
 // MUST pick a folder before starting: Code only. Cowork starts orphan — the server
 // auto-provisions a per-conversation scratch directory and reports it in the `ready` event.
 const gatesWorkspace = (a: string) => a === "code";
@@ -127,7 +127,7 @@ export function App() {
   const [workspace, setWorkspace] = useState<string | null>(null);
   const [branch, setBranch] = useState<string | null>(null);
   const [showGate, setShowGate] = useState(false);
-  const [agent, setAgent] = useState("cowork");
+  const [agent, setAgent] = useState("proposal");
   const [model, setModel] = useState("gpt-5.5");
   const [models, setModels] = useState<string[]>([]);
   const [surfaces, setSurfaces] = useState<SurfaceVisibility>({ cowork: true, chat: false, code: false });
@@ -873,7 +873,7 @@ export function App() {
               workspace={needsWorkspace(agent) ? workspace || "" : undefined}
               branch={branch}
               onPickWorkspace={() => setShowGate(true)}
-              rootsSlot={agent === "cowork" ? <RootsBar sessionId={sessionId} /> : undefined}
+              rootsSlot={agent === "cowork" || agent === "proposal" ? <RootsBar sessionId={sessionId} /> : undefined}
               prefill={composerPrefill}
               resetKey={sessionId}
               placeholder={

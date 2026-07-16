@@ -45,21 +45,74 @@ poetry run black .
 
 ### platform / OpenCoworker (Python app)
 
+#### Mac / Linux
+
 ```bash
-# Install (creates its own venv, aisuite sourced from this worktree via .pth)
 cd platform
+
+# Verify Python version is 3.10+ (macOS ships 3.9 — install 3.10+ via Homebrew if needed)
+#   brew install python@3.12
+python3 --version
+
+# Create the venv using Python 3.10+ (first time only)
+# Use the explicit versioned binary if python3 still points to 3.9:
+#   python3.12 -m venv .venv
+python3 -m venv .venv
+
+# Activate the venv
+source .venv/bin/activate
+
+# Upgrade pip (required — pip <21.3 cannot install pyproject.toml-only editable packages)
+pip install --upgrade pip
+
+# Install the package and dev deps into the venv
 pip install -e ".[dev]"
 
+# Wire aisuite from this worktree into the venv (aisuite is not on PyPI — do once after venv creation)
+# Must be run from inside platform/
+.venv/bin/python -c "import site, pathlib; pathlib.Path(site.getsitepackages()[0], 'aisuite-worktree.pth').write_text(str(pathlib.Path.cwd().parent))"
+
 # Run the server (requires at least one of OPENAI_API_KEY / ANTHROPIC_API_KEY / GOOGLE_API_KEY)
-./.venv/bin/coworker-server --cwd /path/to/project --port 8765
-# or
 coworker-server --cwd . --port 8765
 
 # Run the TUI
 coworker
 
 # Run platform tests
+pytest
+
+# Run a single platform test
+pytest tests/test_engine.py
+```
+
+#### Windows
+
+```powershell
 cd platform
+
+# Create the venv (first time only)
+python -m venv .venv
+
+# Activate the venv
+.venv\Scripts\activate
+
+# Upgrade pip (required — pip <21.3 cannot install pyproject.toml-only editable packages)
+pip install --upgrade pip
+
+# Install the package and dev deps into the venv
+pip install -e ".[dev]"
+
+# Wire aisuite from this worktree into the venv (aisuite is not on PyPI — do once after venv creation)
+# Must be run from inside platform/
+.venv\Scripts\python -c "import site, pathlib; pathlib.Path(site.getsitepackages()[0], 'aisuite-worktree.pth').write_text(str(pathlib.Path.cwd().parent))"
+
+# Run the server (requires at least one of OPENAI_API_KEY / ANTHROPIC_API_KEY / GOOGLE_API_KEY)
+coworker-server --cwd . --port 8765
+
+# Run the TUI
+coworker
+
+# Run platform tests
 pytest
 
 # Run a single platform test
