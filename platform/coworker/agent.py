@@ -9,6 +9,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Optional
 
+import aisuite as ai
+
 from .agents import Agent, AgentContext, code_agent
 from .automation import scheduling_tools
 from .config import load_config
@@ -29,7 +31,9 @@ from .secrets import SecretStore, state_dir
 from .skills import SkillLoader, skill_catalog_text, skill_tools
 from .tools import ToolRegistry
 from .tools.directories import request_directory_tool
+from .tools.engagement import engagement_tools
 from .tools.plan import propose_plan_tool
+from .tools.search import search_tools
 from .tools.subagent import explorer_tools
 from .web import make_web_fetch_tool, make_web_search_tool
 from .tools.shell import LocalExecutor
@@ -50,6 +54,39 @@ approach. When you've committed to one, present it with `propose_plan` (what you
 in which files, how you'll verify) — don't describe edits as if you were making them. If
 the plan is approved, this same session switches to execution and you implement it; if
 rejected, revise the plan using the feedback."""
+
+# Standing instruction for the Proposal agent, appended whenever it has a workspace. Kept here
+# (not in agents/proposal.py) so it applies whether the agent's own PROPOSAL_INSTRUCTIONS come
+# from the ProposalFactory-CoreEngine package or the no-package fallback — either way it's paired
+# with the activate_engagement / load_engagement_context tools registered a few lines below.
+_PROPOSAL_EXECUTION_GUIDANCE = """\
+You are an autonomous consulting execution engine, not a chat assistant. Don't narrate tool \
+calls, don't ask "should I continue?" — execute.
+
+Engagement activation: when the user says something like "Open Engagement: <name>" or "Use \
+Engagement: <name>", call `activate_engagement` with just the name. It becomes the default \
+context for every request in this session until a different engagement is activated. Confirm \
+activation briefly (workspace, requirements folder, deliverables folder) and stop there — don't \
+ask for client details a workspace already answers.
+
+For every proposal request: (1) use the active engagement — call `load_engagement_context` to \
+read its requirements plus any discovery/meeting notes fresh each time, instead of rediscovering \
+files yourself with list_files/read_file/grep; (2) load the skill matching the deliverable being \
+built; (3) consult Proposal Factory knowledge tools if any are available; (4) use web search \
+only if the user explicitly asks for external research, or the engagement and knowledge base \
+genuinely don't have what's needed. Knowledge priority: engagement workspace, then knowledge \
+base, then the conversation, then web search — never let a web result override what the \
+engagement workspace says.
+
+Only stop to ask the user when: no engagement is active and none can be found or activated \
+(activate_engagement returns activated=false); you cannot tell which deliverable was requested; \
+the requirements folder cannot be found (load_engagement_context returns requirements_dir=null); \
+or it exists but has no supported files (requirements=[]). Otherwise generate the deliverable — \
+call out Assumptions, Information Gaps, and Clarifications Required inline rather than pausing \
+to ask; don't withhold a document just because more information would improve it. Never expose \
+which skill, builder, or internal tool you used, or ask the user to pick a file location — you \
+own the execution workflow end to end; write deliverables to the engagement's deliverables \
+folder yourself."""
 
 # When-to-remember rules, injected only when a memory store is wired. Without these,
 # models either never call `remember` or save noise the repo already records.
@@ -151,6 +188,30 @@ def build_engine(
     # Orphan surfaces can ask the user mid-task for access to another folder (read-only/-write).
     if agent.name in ("cowork", "myhelper", "proposal") and root_list:
         registry.register(request_directory_tool())
+    # Proposal Factory gets business-oriented context tools (activate an engagement by name,
+    # then load its context) instead of relying on the LLM to discover and assemble engagement
+    # context via multiple low-level file tools. Passes the live `root_list` so a folder granted
+    # mid-session via request_directory is searchable/readable too.
+    if agent.name == "proposal" and ws is not None:
+        registry.register_all(engagement_tools(str(ws), root_list or None))
+        # ProposalFactory-CoreEngine's own tool_factory is expected to compose file tools itself
+        # (same as cowork_tool_factory does) — it's an OpenCowork component the package reuses,
+        # per docs/proposal-factory-plan.md's "OpenCowork Components Reused" table. When the
+        # package isn't installed, agent.tool_factory is None and build_tools() above registered
+        # nothing, so Proposal would have no way to write a deliverable at all. Fall back to the
+        # same base toolkit Cowork uses so the surface stays usable either way.
+        if agent.tool_factory is None:
+            file_kwargs = (
+                {"roots": root_list} if root_list else {"root": str(ws), "allow_write": True}
+            )
+            registry.register_all(
+                [
+                    t
+                    for t in ai.toolkits.files(**file_kwargs)
+                    if getattr(t, "__name__", "") != "search_files"
+                ]
+            )
+            registry.register_all(search_tools(str(ws)))
     if agent.name == "cowork":
         enabled_connectors, enabled_tools = _enabled_connector_tools(secrets)
         registry.register_all(
@@ -201,6 +262,8 @@ def build_engine(
         conventions = load_agents_md(ws)
         if conventions:
             instructions = f"{instructions}\n\n{conventions}"
+        if agent.name == "proposal":
+            instructions = f"{instructions}\n\n{_PROPOSAL_EXECUTION_GUIDANCE}"
 
     if memory_store is not None:
         registry.register_all(
